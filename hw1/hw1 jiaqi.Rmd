@@ -1,0 +1,200 @@
+---
+title: "hw1 Jiaqi"
+author: "Jiaqi Li"
+date: "January 13, 2019"
+output: pdf_document
+---
+
+## Problem 1
+1.
+
+Let $Y = \delta_t B_t$, then we can derive that:
+
+\begin{align*}
+P(Y \geq y) &= P(\delta_t B_t \geq y) \\
+&= P(B_t = 1)P(\delta_t B_t \geq y | B_t = 1) + P(B_t = 0)P(\delta_t B_t \geq y | B_t = 0) \\
+&= pP(\delta_t \geq y) \\
+\end{align*}
+
+Since $\delta_t \sim N(0,1)$, $Y = \delta_t B_t \sim N(0,p)$.
+
+We also have:
+
+
+$$E(\delta_t^3) = E(\epsilon_t^3) = 0 $$
+$$E(\delta_t^4) = E(\epsilon_t^4) = 3 $$
+$$E((\delta_t B_t)^3) = 0, E((\delta_t B_t)^4) = 3p$$
+
+Calculate mean, vairnace, skewness, and kurtosis: 
+\begin{align*}
+r_t &= \mu + \sigma \epsilon_t + B_t(\mu_J + \sigma_J\delta_t) \\
+&= \mu + \sigma \epsilon_t + B_t\mu_J + B_t\sigma_J\delta_t \\
+\\
+E(r_t) &= E(\mu + \sigma \epsilon_t + B_t\mu_J + B_t\sigma_J\delta_t) \\
+&= \mu + 0 + \mu_Jp + 0 = \mu + \mu_Jp \\
+\\
+Var(r_t) &= Var(\mu + \sigma \epsilon_t + B_t\mu_J + B_t\sigma_J\delta_t) \\
+&= \sigma^2 + \mu_J^2p(1-p) + \sigma_J^2p^2 \\
+\\
+S(r_t) &= S(\mu + \sigma \epsilon_t + B_t\mu_J + B_t\sigma_J\delta_t) \\
+&= 0 + 0 + \mu_J^3 \frac{1-2p}{p(1-p)} + 0 \text{ where } E((\delta_t B_t)^3) = 0 \\
+&= \mu_J^3 \frac{1-2p}{p(1-p)} \\
+\\
+K(r_t) - 3 &= K(\mu + \sigma \epsilon_t + B_t\mu_J + B_t\sigma_J\delta_t) - 3\\
+&= 3\sigma^2 + \mu_J^4\frac{3p^2-3p+1}{p(1-p)}+ 3p\sigma_j^4 - 3 \text{ where } E((\delta_t B_t)^4) = 3p \\
+\end{align*}
+
+2.
+
+For daily log-returns, data is skewed and has high kurtosis. Heterodasticity is also a problem. Thus, a simple log normal model is not a good model in this situation because of violation of assumptions.
+
+In the Bernoulli-normal model, a jump is introduced into the model, which helps improve the model.
+
+3.
+
+```{r}
+sim = rnorm(600,0.008,0.063)
+
+mu = 0.012; sigma = 0.05; p = 0.15; mu_j = -0.03; sigma_j = 0.1
+epsilon = rnorm(600,0,1)
+delta = rnorm(600,0,1)
+bernoulli = rbinom(600,1,p)
+r = mu + sigma*epsilon + bernoulli*(mu_j+sigma_j*delta)
+mu_r = mean(r)
+std = sd(r)
+skew = sum((r-mu_r)^3/(std^3))/(length(r)-1)
+kurt = sum((r-mu_r)^4/(std^4))/(length(r)-1)
+print(paste("unconditional mean is ", round(mu_r,2)))
+print(paste("unconditional standard deviation is ", round(std,2)))
+print(paste("unconditional skewness is ", round(skew,2)))
+print(paste("unconditional kurtosis is ", round(kurt,2)))
+
+hist(sim, main = "simmuation of normal dist")
+hist(r, main = "simmuation of jump model")
+
+plot(sim, type = "l", main = "simmuation of normal dist")
+plot(r, type = "l", main = "simmuation of jump model")
+```
+
+Based on the graph, the jump model simulation looks more similarly to the market data.
+
+##Problem 2
+
+1.
+
+```{r}
+DBV = read.csv("DBV.csv")
+GSPC = read.csv("GSPc.csv")
+
+DBV_p = DBV$Adj.Close
+DBV_p_lag = c(0,DBV_p[1:(length(DBV_p)-1)])
+dvd = DBV_p/DBV_p_lag
+r_DBV = log(dvd[2:length(dvd)])
+
+GSPC_p = GSPC$Adj.Close
+GSPC_p_lag = c(0,GSPC_p[1:(length(GSPC_p)-1)])
+dvd2 = GSPC_p/GSPC_p_lag
+r_GSPC = log(dvd2[2:length(dvd2)])
+```
+
+(a)
+```{r}
+plot(r_DBV, type = "l")
+plot(r_GSPC, type = "l")
+```
+
+(b)
+```{r}
+colB = scales::alpha("blue",0.5)
+colR = scales::alpha("red",0.5)
+hist(r_DBV, breaks = 100, col = colB)
+hist(r_GSPC, breaks = 100, add = T, col = colR)
+```
+
+2.
+
+(a)
+```{r}
+skew_DBV = sum((r_DBV-mean(r_DBV))^3/(sd(r_DBV)^3))/(length(r_DBV)-1)
+t_skew_DBV = skew_DBV/sqrt(6/length(r_DBV))
+if (abs(t_skew_DBV) > 1.96){
+  print(paste("|t| =", round(abs(t_skew_DBV),2), "> 1.96, reject null hypothesis and skewness of DBV is significantly different than 0"))
+  }else{
+  print("skewness of DBV is not significantly different than 0")}
+  
+skew_GSPC = sum((r_GSPC-mean(r_GSPC))^3/(sd(r_GSPC)^3))/(length(r_GSPC)-1)
+t_skew_GSPC = skew_GSPC/sqrt(6/length(r_GSPC))
+if (abs(t_skew_GSPC) > 1.96){
+  print(paste("|t| =", round(abs(t_skew_GSPC),2), "> 1.96, reject null hypothesis and skewness of GSPC is significantly different than 0"))
+}else{
+  print("skewness of GSPC is not significantly different than 0")}
+```
+
+(b)
+```{r}
+kurt_DBV = sum((r_DBV-mean(r_DBV))^4/(sd(r_DBV)^4))/(length(r_DBV)-1)
+t_kurt_DBV = (kurt_DBV-3)/sqrt(24/length(r_DBV))
+if (abs(t_kurt_DBV) > 1.96){
+  print(paste("|t| =", round(abs(t_kurt_DBV),2), "> 1.96, reject null hypothesis and kurtosis of DBV is significantly different than 0"))
+}else{
+  print("kurtosis of DBV is not significantly different than 0")}
+
+kurt_GSPC = sum((r_GSPC-mean(r_GSPC))^4/(sd(r_GSPC)^4))/(length(r_GSPC)-1)
+t_kurt_GSPC = (kurt_GSPC-3)/sqrt(24/length(r_GSPC))
+if (abs(t_kurt_GSPC) > 1.96){
+  print(paste("|t| =", round(abs(t_kurt_GSPC),2), "> 1.96, reject null hypothesis and kurtosis of GSPC is significantly different than 0"))
+}else{
+  print("kurtosis of GSPC is not significantly different than 0")}
+```
+
+(c)
+
+```{r}
+JB_DBV = t_skew_DBV^2+t_kurt_DBV^2
+JB_GSPC = t_skew_GSPC^2+t_kurt_GSPC^2
+CHI = qchisq(0.95,2)
+
+if (JB_DBV > CHI){
+  print(paste("JB =", round(JB_DBV,2), ">", round(CHI,2), ", reject null hypothesis and DBV is not normally distributed"))
+}else{
+  print("DBV is normally distributed")}
+
+if (JB_GSPC > CHI){
+  print(paste("JB =", round(JB_GSPC,2), ">", round(CHI,2), ", reject null hypothesis and GSPC is not normally distributed"))
+}else{
+  print("GSPC is normally distributed")}
+```
+
+3.
+
+```{r}
+table = matrix(c(skew_DBV, t_skew_DBV, kurt_DBV, t_kurt_DBV, skew_GSPC, t_skew_GSPC, kurt_GSPC, t_kurt_GSPC), nrow = 4, ncol = 2)
+colnames(table) = c("DBV", "GSPC")
+rownames(table) = c("skewness", "t.skewness", "kurtosis", "t.kurtosis")
+print(table)
+```
+
+4.
+
+Since the sharpe ratios for equity and currency market are the same and the target return is a constant for both investment, the volatilities of both investment are the same. However, kurtosis and skewness of GSPC are smaller than those of DBV. That means GSPC has less probability of having extreme events. Thus, investing in equity market has less risk.
+
+5.
+
+```{r}
+library(sandwich)
+
+lm.return = lm(r_DBV ~ r_GSPC)
+summ_return = summary(lm.return)
+std.coeff = data.frame(summ_return$coefficients[1:2,2])
+colnames(std.coeff) = "standard error"
+plot(r_DBV,r_GSPC)
+abline(summ_return$coefficients[1],summ_return$coefficients[2], col= "red")
+wstd = sqrt(diag(vcovHC(lm.return, type = "HC")))
+wstd.coeff = data.frame(wstd)
+colnames(wstd.coeff) = "white std"
+print(std.coeff)
+print(wstd.coeff)
+```
+
+For OLS assumption,data is considered as normally distributed with homoskedasticity.
+However, our data does not satisfy normality and homoskedasticity. The real standard deviation is larger than std with OLS assumptions.

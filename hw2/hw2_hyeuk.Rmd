@@ -1,0 +1,160 @@
+---
+title: "MGMTMFE407-2_HW_2_Group_7"
+output: pdf_document
+header-includes:
+    - \inputencoding{utf8}
+    - \DeclareUnicodeCharacter{0394}{$\Delta$}
+---
+
+# Problem 1: AR(p) Processes
+
+## Q3: AR(2)
+```{r, echo=FALSE}
+library(data.table)
+library(magrittr)
+library(readxl)
+library(purrr)
+```
+
+AR(2) process with $\phi_1 = 1.1$ and $\phi_2 = -0.25$
+```{r}
+AR_2 <- function(phi_0 = 0, phi_1, phi_2, sigma = 1, len = 1000){
+  mu <- phi_0 / (1 - phi_1 - phi_2)
+  y <- double(len)
+  y[1] <- phi_0 + rnorm(n = 1, sd = sigma)
+  y[2] <- phi_0 + phi_1*y[1] + rnorm(n = 1, sd = sigma) # + phi_2*0
+  for(t in 3:len){
+    y[t] = phi_0 + phi_1*y[t-1] + phi_2*y[t-2] + rnorm(n = 1, sd = sigma)
+  }
+  return(y)
+}
+```
+
+a) Plot autocorrelation function for this process for lags 0 through 20.
+```{r}
+phi_1 <- 1.1; phi_2 <- -.25
+problem1_a <- AR_2(phi_1 = phi_1, phi_2 = phi_2)
+acf(problem1_a)
+```
+
+b) Stationary 
+
+To tell AR( _p_ ) process stationary, all its characteristic roots $\omega_1$ and $\omega_2$ should be less than one.
+\begin{align*}
+1 - 1.1x - (-0.25)x^2 &= 0 \\
+0.25x^2 - 1.1x + 1 &= 0 \\
+\therefore x &= \frac{-(-1.1) \pm \sqrt{(-1.1)^2 -4*0.25*1}}{2*0.25} = 3.1165 \text{ or } 1.2835\\
+\\
+\therefore \omega_1 &= x_1^{-1} = 3.1165^{-1} = 0.3209 \text{ and } \omega_2 = x_2^{-1} = 0.7791
+\end{align*} 
+
+As the characteristic roots are less than 1, this process is stationary.
+
+c) The dynamic multiplier for a shock that occured 6 periods ago.
+$$
+\frac{\partial[r_{t+6} - \mu]}{\partial \varepsilon_t} = 
+$$
+
+d) $\phi_1 = 0.9$ and $\phi_2 = 0.8$. 
+
+  (1) The dynamic multiplier for a shock that occured 6 periods ago. 
+$$
+\frac{\partial[r_{t+6} - \mu]}{\partial \varepsilon_t} = 
+$$
+ 
+  (2)Stationary 
+\begin{align*}
+1 - 0.9x - 0.8x^2 &= 0 \\
+-0.8x^2 - 0.9x + 1 &= 0 \\
+\therefore x &= \frac{0.9 \pm \sqrt{(-0.9)^2 -4*(-0.8)*1}}{2*(-0.8)} = -1.8141 \text{ or } 0.6891\\
+\\
+\therefore \omega_1 &= x_1^{-1} = (-1.8141)^{-1} = -0.5512 \text{ and } \omega_2 = x_2^{-1} = 1.4512
+\end{align*} 
+
+As one of the characteristic roots is greater than 1, this process is unstationary.
+
+
+# Problem 2: Applying the Box-Jenkins methodology
+
+## Q1
+```{r}
+ppi <- read_xls("PPIFGS.xls", sheet = 1) %>% as.data.table; gc() #ppi <- as.xts(df)
+par(mfrow=c(2,2))
+
+# 1. (a) Plot the PPI in levels
+test <- as.factor(ppi$VALUE)
+plot(levels(test), col = "green", main = "PPI in levels")
+
+# 1. (b) Plot delta(PPI)
+ppi$diff <- ppi$VALUE - shift(ppi$VALUE)
+plot(ppi$diff, pch = 20, col = "blue", main = "Delta(PPI)")
+
+# 1. (c) log(PPI)
+ppi$log_ppi <- log(ppi$VALUE)
+plot(ppi$log_ppi, pch = 19, col = "skyblue", main = "log(PPI)")
+
+# 1. (d) delta(logPPI)
+ppi$log_diff <- ppi$log_ppi - shift(ppi$log_ppi)
+plot(ppi$log_diff, pch = 18, col = "magenta", main = "Delta(log(PPI))")
+```
+
+
+## Q2
+
+$\Delta$(logPPI): Seems to maintain the same mean throughout the period and the variance depends on relative potisions of the two terms...?
+
+
+## Q3 ACF of _y_t_ for 12 quarters
+```{r}
+par(mfrow=c(1,1))
+acf(ppi$log_diff, lag.max = 12, na.action = na.omit) # Autocorrelation converges quickly.
+```
+
+Conclusion: Autocorrelation converges quickly.
+
+
+## Q4 PACF of _y_t_ for 12 quarters
+```{r}
+pacf(ppi$log_diff, lag.max = 12, na.action = na.omit) 
+# The result strongly suggests to use AR(4) model. Optimal lag length is 4 (1, 2, 3, 11 lags)
+```
+
+Conclusion: The result strongly suggests to use AR(4) model with optimal lag - 1, 2, 3, 11
+
+
+## Q5 Select two different AR model specification
+
+#### 1. AR(2) model with lag of 1 and 2.
+
+(a) Coefficient estimates and standard errors
+```{r}
+out1 <- lm(log_diff ~ shift(log_diff)+shift(log_diff, 2), data = ppi)
+summary(out1)
+```
+
+(b) Plot residuals 
+```{r}
+plot(out1$residuals, pch = 20, col = "blue", main = "Delta(logPPI) AR(2) Residuals")
+acf(out1$residuals)
+```
+
+(c) Q-statistic for the residuals for 8 and 12 quarters, AIC and BIC
+
+
+#### 2. AR(4) model with lag of 1, 2, 3 and 11.
+
+(a) Coefficient estimates and standard errors
+```{r}
+out2 <- lm(log_diff ~ shift(log_diff)+shift(log_diff, 2)+shift(log_diff, 3)+shift(log_diff, 11), data = ppi)
+summary(out2)
+```
+
+(b) Plot residuals 
+```{r}
+plot(out2$residuals, pch = 20, col = "green", main = "Delta(logPPI) AR(4) Residuals")
+acf(out2$residuals)
+```
+
+(c) Q-statistic for the residuals for 8 and 12 quarters, AIC and BIC
+
+

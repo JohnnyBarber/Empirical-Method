@@ -1,0 +1,298 @@
+---
+title: "MGMTMFE407-2_HW1_Hyeuk Jung"
+output: pdf_document
+---
+
+# Problem 1
+
+## Q1
+
+\begin{align*}
+E(r_t) &= E(\mu + \sigma*\varepsilon_t + J_t) \\
+       &= \mu + \sigma*E(\varepsilon_t) + E(J_t) \\
+       &= \mu + p*\mu_J
+\\
+\\
+Var(r_t) &= Var(\mu + \sigma*\varepsilon_t + J_t) \\
+         &= \sigma^2*Var(\varepsilon_t) + Var(J_t) \\
+         &= \sigma^2 + \mu^2_J*p(1-p) + \sigma^2_J*p
+\end{align*} 
+
+Used the cumulant generating function of the return model.
+Let X = $\mu + \sigma*\varepsilon_t$ ~ $N(\mu, \sigma^2)$
+
+\begin{align*}
+K(r_t) &= ln(M_r(t)) = ln(M_X(t)*M_J(t)) = lnM_X(t) + lnM_J(t) \\
+       &= (\mu t + \frac{1}{2}\sigma^2t^2) + ln(e^{\mu_j t}p + (1-p)) + ln(e^{\frac{1}{2}\sigma^2_Jt^2}p + (1-p)) \\
+\\
+Skew(r_t) &= S(\mu + \sigma*\varepsilon_t + J_t) \\
+       &= \frac{E[(r_t - \mu_r)^3]}{\sigma^3_r}\\
+       &= \frac{\frac{d^3}{dt^3}K(r_t)}{\sigma^3_r} \\
+       &= \frac{\mu^3_J*p(1-p)^2}{(\sigma^2 + \mu^2_J*p(1-p) + \sigma^2_J*p)^\frac{3}{2}}
+\\
+\\
+Kurt(r_t) -3 &= \frac{E[(r_t - \mu_r)^4]}{\sigma^4_r} - 3 \\
+             &= \frac{\frac{d^4}{dt^4}K(r_t)}{\sigma^4_r} - 3 \\
+             &= \frac{3 + \mu^4_Jp(1-7p+8p^2-2p^3)}{(\sigma^2 + \mu^2_Jp(1-p) + \sigma^2_Jp)^2} - 3 \\
+\end{align*} 
+\vspace{\baselineskip}
+\vspace{\baselineskip}
+
+## Q2
+
+Normal (continuous distribution) + Bernoulli (discrete distribution)
+
+By combining both distribution, we can represent fat tails in to the model.
+\vspace{\baselineskip}
+\vspace{\baselineskip}
+
+## Q3
+
+1) r ~ N(mean = 0.008, sd = 0.063), number of observations: 600 (50 years)
+```{r, echo=FALSE, message=FALSE}
+library(magrittr)
+library(xts)
+library(data.table)
+library(readxl)
+
+library(purrr)
+library(moments)
+```
+
+```{r}
+# 1) r ~ N(mean = 0.008, sd = 0.063), number of observations: 600 (50 years)
+r = 0.008; sigma = 0.063; t = 1:600
+sim <- function(r, sigma, t) {
+  #y = r + sigma*rnorm(length(t), sd = 1) # rnorm(): error term
+  y = r + rnorm(length(t), sd = sigma)
+}
+normalmodel = sim(r, sigma, t)
+
+#par(mfrow=c(1,2))
+plot(t, normalmodel, pch=20, col="blue", ylim = c(-.3, .3), type = 'l')
+abline(h = mean(normalmodel) + sd(normalmodel)*4, col = "red") # r + sigma*4
+abline(h = mean(normalmodel) - sd(normalmodel)*4, col = "red") # r - sigma*4
+title(paste("Daily log returns ~ N(mean = ", r,", sigma = ", sigma, ")", sep=""))
+legend("topright", legend = c("Log Returns", "mu + 4sd", "mu - 4sd"), lty = 1, col = c("blue", "red", "red"), cex = .5)
+```
+
+__Compared to the data given in the lecture 1, all observations are within the +/- 4$\sigma$ range. That being said, the simulation has no extreme case, which can be observed in the real market.__
+\vspace{\baselineskip}
+
+2) r = mean + sd*e_t + J_t 
+```{r}
+# e_t ~ N(0, 1)
+# J_t; mean = mean(J)*p, var = mean(J)^2*p*(1-p) + var(J)*p
+mean = 0.012; sigma = 0.05; p = 0.15; mean_j = -0.03; sigma_j = 0.1
+sim2 <- function(mean, sigma, p, mean_j, sigma_j, t) {
+  y = mean + sigma*rnorm(length(t), sd = 1) + rbernoulli(length(t), p)*(mean_j + sigma_j*rnorm(length(t), sd = 1))
+}
+jumpmodel = sim2(mean, sigma, p, mean_j, sigma_j, t)
+
+#par(mfrow=c(1,2))
+plot(t, jumpmodel, pch=20, col="green", ylim = c(-.3, .3), type = 'l')
+abline(h = mean(jumpmodel) + sd(jumpmodel)*4, col = "red") # mean + mean_j*p + sigma*4
+abline(h = mean(jumpmodel) - sd(jumpmodel)*4, col = "red")
+title(paste("mean = ", mean,", sigma = ", sigma, ", p = ", p, sep=""))
+legend("topright", legend = c("Log Returns", "mu + 4sd", "mu - 4sd"), lty = 1, 
+       col = c("green", "red", "red"), cex = .5)
+```
+```{r, echo=FALSE}
+hist(jumpmodel, breaks = 50, xlim = c(-.3, .3), ylim = c(0, 60), col = "skyblue1", main = "", xlab = "")
+par(new=TRUE)
+hist(normalmodel, breaks = 50, xlim = c(-.3, .3), ylim = c(0, 60), col = "lightpink", main = "", xlab = "")
+legend("topright", legend = c("Jump Model", "Normal Model"), lty = 1, col = c("skyblue1", "lightpink"), cex = 1)
+```
+
+__Unconditional mean, var, skewness, and kurtosis of the jump model:__
+```{r, echo=FALSE}
+paste("mean = ", mean(jumpmodel))
+paste("variance = ", var(jumpmodel))
+paste("skewness = ", skewness(jumpmodel))
+paste("kurtosis = ", kurtosis(jumpmodel))
+```
+
+__Compared to the simulation above, the simulated results are more silimar to the real market data. We can observe extreme cases reaching +/- 4$\sigma$ range, which implies that the distribution of the result would have fat tail. However, we still cannot see volatility clustering.__
+\vspace{\baselineskip}
+\vspace{\baselineskip}
+\newpage
+
+# Problem 2
+
+```{r, echo=FALSE, results="hide"}
+# Load Data
+dbv <- read_xlsx("DBV.xlsx", sheet = 1) %>% as.data.table; gc()
+gspc <- read_xlsx("GSPC.xlsx", sheet = 1) %>% as.data.table; gc()
+
+dbv <- dbv[, .(Date, `Adj Close`)]
+gspc <- gspc[, .(Date, `Adj Close`)]
+colnames(dbv)[2] <- "close"
+colnames(gspc)[2] <- "close"
+
+# daily log returns
+dbv[, "close" := log(close / shift(close))]
+dbv <- dbv[-1]
+gspc[, "close" := log(close / shift(close))]
+gspc <- gspc[-1]
+```
+
+## Q1. Visualizing the data
+
+(a) Time series plots of the daily log-returns for DBV and GSPC
+```{r}
+with(dbv, plot(Date, close, type = 'l', col = "blue"))
+with(gspc, plot(Date, close, type = 'l'))
+```
+\vspace{\baselineskip}
+
+(b) Histograms of the daily log-returns for DBV and GSPC
+```{r}
+hist(dbv$close, breaks = 50, xlim = c(-.1, .1))
+hist(gspc$close, breaks = 50, xlim = c(-.1, .1))
+```
+\vspace{\baselineskip}
+\vspace{\baselineskip}
+
+## Q2. Shape of Return Distribution
+(a) H0: skewness = 0, a = 0.05
+```{r}
+# DBV (Deutsche Bank)
+skew_dbv <- skewness(dbv$close)
+skew_dbv_t <- skew_dbv / sqrt(6/length(dbv$close))
+paste(abs(skew_dbv_t), ">", 1.96, ": reject null")
+#pt(0.975, nrow(dbv)-1)
+
+# GSPC (S&P 500)
+skew_gspc <- skewness(gspc$close)
+skew_gspc_t <- skew_gspc / sqrt(6/length(gspc$close))
+paste(abs(skew_gspc_t), ">", 1.96, ": reject null")
+```
+\vspace{\baselineskip}
+
+(b) H0: excess kurtosis = 0, a = 0.05
+```{r}
+# DBV (Deutsche Bank)
+kurt_dbv <- kurtosis(dbv$close) - 3
+kurt_dbv_t <- kurt_dbv / sqrt(24/length(dbv$close))
+paste(abs(kurt_dbv_t), ">", 1.96, ": reject null")
+
+# GSPC (S&P 500)
+kurt_gspc <- kurtosis(gspc$close) - 3
+kurt_gspc_t <- kurt_gspc / sqrt(24/length(gspc$close))
+paste(abs(kurt_gspc_t), ">", 1.96, ": reject null")
+```
+\vspace{\baselineskip}
+
+(c) Jarque-Bera test (H0: skewwness & excess kurtosis = 0 (log return ~ Normal), a = 0.05)
+```{r}
+#jb = ( skew_dbv^2 / (6/length(dbv$close)) ) + (kurt_dbv^2 / (24/length(dbv$close)))
+# DBV (Deutsche Bank)
+jb_dbv <- skew_dbv_t^2 + kurt_dbv_t^2
+jb_dbv_chi <- qchisq(0.95, df = 2)
+paste(jb_dbv, ">", jb_dbv_chi, ": reject null")
+
+# GSPC (S&P 500)
+jb_gspc <- skew_gspc_t^2 + kurt_gspc_t^2
+jb_gspc_chi <- qchisq(0.95, df = 2)
+paste(jb_gspc, ">", jb_gspc_chi, ": reject null")
+```
+\vspace{\baselineskip}
+\vspace{\baselineskip}
+
+## Q3.
+
+```{r, echo=FALSE}
+library(knitr)
+library(kableExtra)
+dt <- matrix(
+  c(skew_dbv, skew_dbv_t, kurt_dbv, kurt_dbv_t, jb_dbv, pchisq(jb_dbv, df=2, lower.tail=FALSE), 
+    skew_gspc, skew_gspc_t, kurt_gspc, kurt_gspc_t, jb_gspc, pchisq(jb_gspc, df=2, lower.tail=FALSE)), 
+  ncol = 2, 
+  dimnames = list(c("Skewness", "t-test", "Excess Kurtosis", "t-test", "JB-test", "p-value JB"), 
+                  c("DBV (Deutsche Bank)", "GSPC (S&P 500)")))
+kable(dt, "latex", booktabs = T) %>% kable_styling(latex_options = "striped") %>% add_indent(c(2, 4))
+```
+
+__From the result, it is hard to say that log returns of both the DBV and S&P500 indices are following the normal distribution. For the DBV index, its negative skewness and high kurtosis shows that the index has been exposed to more extreme events compared to the S&P500.__
+\vspace{\baselineskip}
+\vspace{\baselineskip}
+
+## Q4.
+
+```{r}
+# 1. scale the data to hold annual return = 0.2, annual sd = 0.4 (sharpe ratio = E(r)/sd = 0.5)
+daily_target_r <- 0.2/252
+daily_target_sd <- 0.4/sqrt(252)
+
+# DBV
+mean_dbv_daily <- mean(dbv$close)
+sd_dbv_daily <- sd(dbv$close)
+################################
+# I'm not sure if this is the right way to scale the return and standard deviation
+dbv$ret <- ((dbv$close - mean_dbv_daily)/sd_dbv_daily)* daily_target_sd + daily_target_r
+################################
+## Annual returns
+dbv_annual <- apply.yearly(dbv[, .(Date, close)], function(x) prod(1 + x, na.rm = T) - 1)
+#mean(dbv_annual) # -0.003420513
+dbv_lever <- apply.yearly(dbv[, .(Date, ret)], function(x) prod(1 + x, na.rm = T) - 1)
+#mean(dbv_lever) # 0.2006492
+
+# GSPC
+mean_gspc_daily <- mean(gspc$close)
+sd_gspc_daily <- sd(gspc$close)
+gspc$ret <- ((gspc$close - mean_gspc_daily)/sd_gspc_daily)* daily_target_sd + daily_target_r
+## Annual returns
+gspc_annual <- apply.yearly(gspc[, .(Date, close)], function(x) prod(1 + x, na.rm = T) - 1)
+#mean(gspc_annual) # 0.04344666
+gspc_lever <- apply.yearly(gspc[, .(Date, ret)], function(x) prod(1 + x, na.rm = T) - 1)
+#mean(gspc_lever) # 0.1985398
+```
+```{r, echo=FALSE}
+data <- matrix(
+  c(mean_dbv_daily, mean(dbv_annual), sd_dbv_daily, sd(dbv_annual), skewness(dbv$close), kurtosis(dbv$close),
+    mean(dbv$ret), mean(dbv_lever), sd(dbv$ret), sd(dbv_lever), skewness(dbv$ret), kurtosis(dbv$ret),
+    mean_gspc_daily, mean(gspc_annual), sd_gspc_daily, sd(gspc_annual), skewness(gspc$close), kurtosis(gspc$close),
+    mean(gspc$ret), mean(gspc_lever), sd(gspc$ret), sd(gspc_lever), skewness(gspc$ret), kurtosis(gspc$ret)), 
+  ncol = 4, 
+  dimnames = list(c("Daily Return", "Annual Return", "Standard Deviation", "SD (annual)", "Skewness", "Kurtosis"), c("Original DBV", "Leveraged DBV", "Original GSPC", "Leveraged GSPC")))
+kable(data, "latex", booktabs = T) %>% kable_styling(latex_options = "striped") %>% 
+row_spec(c(2, 4), bold = F, color = "gray") %>% add_indent(c(2, 4))
+```
+
+Using these numbers, discuss the different nature of the risks you would face if you invested in equity or currency markets to achieve that target return (with the appropriate leverage).
+
+__While we can manipulate the return and standard deviation, it does not affect the skewness and the kurtosis of the distribution.__
+\vspace{\baselineskip}
+\vspace{\baselineskip}
+
+## Q5.
+
+```{r}
+# Classic OLS (under normality)
+out <- lm(dbv$close ~ gspc$close)
+#summary(out)
+ols <- summary(out)$coef[1:2, 1:2]
+
+# Regression allowing non-normality and HAC
+library(sandwich)
+hac <- sqrt(diag(vcovHAC(out)))
+```
+
+```{r, echo=FALSE}
+# Comparing standard errors of the slope and the intercept
+dt <- matrix(
+  c(ols[2,2], ols[1,2], hac[[2]], hac[[1]]), 
+  ncol = 2, 
+  dimnames = list(c("Slope", "Intercept"), c("Standard OLS", "Non-normality and HAC")))
+kable(dt, "latex", booktabs = T) %>% kable_styling(latex_options = "striped")
+```
+
+While we are assuming constant volatility for all residuals under homogeneity, heteroskedastic standard errors does not hold this assumption and accepts wider/narrower intervals of the residuals.
+
+In general, residuals increases as the value of independent variable increases. Thus, the robust standard errors are larger than non-robust (homogeneity) standard errors, evaluating coefficients conservatively (as it decreases the t-stat of the coefficients). 
+
+In the result above, the robust standard error of the slope holds larger value while that of the intercept decreased. 
+
+__Reason for smaller robust standard errors?__
+
+
